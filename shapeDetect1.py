@@ -1,0 +1,170 @@
+#!/usr/bin/python
+import math
+import numpy as np
+import cv2
+
+#dictionary of all contours
+contours = {}
+#array of edges of polygon
+approx = []
+#scale of the text
+scale = 0.5
+#camera
+if(cv2.VideoCapture(2).isOpened()):
+    cap=cv2.VideoCapture(2)
+else:
+    cap = cv2.VideoCapture(0)
+print("press q to exit")
+
+# Define the codec and create VideoWriter object
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+out = cv2.VideoWriter('output.avi',fourcc, 20.0, (640,480))
+shapesstr=['point','line','triangle','rectangle','pentagon','hexagon','octagon','circle']
+shpcnt=[0,0,0,0,0,0,0,0]
+shpcnt1=[0,0,0,0,0,0,0,0]
+#calculate angle
+def angle(pt1,pt2,pt0):
+    dx1 = pt1[0][0] - pt0[0][0]
+    dy1 = pt1[0][1] - pt0[0][1]
+    dx2 = pt2[0][0] - pt0[0][0]
+    dy2 = pt2[0][1] - pt0[0][1]
+    return float((dx1*dx2 + dy1*dy2))/math.sqrt(float((dx1*dx1 + dy1*dy1))*(dx2*dx2 + dy2*dy2) + 1e-10)
+def shapevertex(shpcnt,img):
+    canny2, contours, hierarchy = cv2.findContours(img.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    for i in range(0,len(contours)):
+        approx = cv2.approxPolyDP(contours[i],cv2.arcLength(contours[i],True)*0.03,True)
+        if(abs(cv2.contourArea(contours[i]))<100 or not(cv2.isContourConvex(approx))):
+                continue
+        x,y,w,h = cv2.boundingRect(contours[i])
+        cv2.drawContours(img,[contours[i]], -1, (255, 255, 0), 2) 
+        if(len(approx)<=8):
+            print(shapesstr[len(approx)-1])       
+            shpcnt[len(approx)-1]=shpcnt[len(approx)-1]+1;
+        else:
+            shpcnt[8]=shpcnt[8]+1;
+    out.write(img)
+    return img,shpcnt
+            
+def detect(frame,img):
+    canny2, contours, hierarchy = cv2.findContours(img.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    for i in range(0,len(contours)):
+            #approximate the contour with accuracy proportional to
+            #the contour perimeter
+            approx = cv2.approxPolyDP(contours[i],cv2.arcLength(contours[i],True)*0.03,True)
+
+            #Skip small or non-convex objects
+            if(abs(cv2.contourArea(contours[i]))<100 or not(cv2.isContourConvex(approx))):
+                continue
+
+            #triangle
+            if(len(approx) == 3):
+                x,y,w,h = cv2.boundingRect(contours[i])
+                cv2.drawContours(frame, [contours[i]], -1, (0, 255, 0), 2)
+                #cv2.putText(image,shape,(cX, cY),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255, 255, 255),2)
+                cv2.putText(frame,'TRI',(x,y),cv2.FONT_HERSHEY_SIMPLEX,scale,(255,255,255),2,cv2.LINE_AA)
+            elif(len(approx)>=4 and len(approx)<=6):
+                #nb vertices of a polygonal curve
+                vtc = len(approx)
+                #get cos of all corners
+                cos = []
+                for j in range(2,vtc+1):
+                    cos.append(angle(approx[j%vtc],approx[j-2],approx[j-1]))
+                #sort ascending cos
+                cos.sort()
+                #get lowest and highest
+                mincos = cos[0]
+                maxcos = cos[-1]
+
+                #Use the degrees obtained above and the number of vertices
+                #to determine the shape of the contour
+                x,y,w,h = cv2.boundingRect(contours[i])
+
+                
+                if(vtc==4):
+                    cv2.drawContours(frame, [contours[i]], -1, (255, 0, 0), 2)
+                    cv2.putText(frame,'RECT',(x,y),cv2.FONT_HERSHEY_SIMPLEX,scale,(255,255,255),1,cv2.LINE_AA)
+                elif(vtc==5):
+                    cv2.drawContours(frame, [contours[i]], -1, (0, 0, 0), 2)
+                    cv2.putText(frame,'PENTA',(x,y),cv2.FONT_HERSHEY_SIMPLEX,scale,(255,255,255),1,cv2.LINE_AA)
+                elif(vtc==6):
+                    cv2.drawContours(frame, [contours[i]], -1, (0, 0, 255), 2)
+                    cv2.putText(frame,'HEXA',(x,y),cv2.FONT_HERSHEY_SIMPLEX,scale,(255,255,255),1,cv2.LINE_AA)
+            else:
+                #detect and label circle
+                area = cv2.contourArea(contours[i])
+                x,y,w,h = cv2.boundingRect(contours[i])
+                cv2.drawContours(frame, [contours[i]], -1, (0, 255, 255), 2)
+                radius = w/2
+                if(abs(1 - (float(w)/h))<=2 and abs(1-(area/(math.pi*radius*radius)))<=0.2):
+                    cv2.putText(frame,'CIRC',(x,y),cv2.FONT_HERSHEY_SIMPLEX,scale,(255,255,255),2,cv2.LINE_AA)
+
+        #Display the resulting frame
+    out.write(frame)
+    return frame,img
+        
+cntconfi=0
+while(cap.isOpened()):
+    #Capture frame-by-frame
+    ret, frame = cap.read()
+    if ret==True:
+        #grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        #Canny
+        canny = cv2.Canny(frame,80,240,3)
+        #gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)[1]
+        #canny = cv2.GaussianBlur(canny, (5, 5), 0)
+        #thresh1 = cv2.threshold(blurred1, 150, 255, cv2.THRESH_BINARY)[1]
+        #contours
+        if(cntconfi<80 and cntconfi!=0):
+            cntconfi=cntconfi+1
+            frm1,shpcnt=shapevertex(shpcnt,thresh)
+            frm2,shpcnt1=shapevertex(shpcnt1,canny)
+            cv2.imshow('threshold',frm1)
+            cv2.imshow('cannyimg',frm2)
+            print(shpcnt)
+            print(shpcnt1)
+            max_id=np.argmax(shpcnt)
+            print("shape is by thres:"+shapesstr[max_id])
+            max_id1=np.argmax(shpcnt1)
+            print("shape is by canny:"+shapesstr[max_id1])
+        
+        if(cntconfi>=80):
+            cntconfi=0
+            shpcnt=[0,0,0,0,0,0,0,0]
+            shpcnt1=[0,0,0,0,0,0,0,0]
+            
+
+        if cv2.waitKey(1) ==97: #if q is pressed
+            frame1,frame2=detect(frame,thresh)
+            frame3,frame4=detect(frame,canny)
+            cv2.imshow('threshold',frame1)
+            cv2.imshow('cannyimg',frame3)
+            cv2.imshow('threshold11',frame2)
+            cv2.imshow('cannyimg11',frame4)
+        if cv2.waitKey(1) ==98: #if q is pressed
+            cntconfi=1
+            #frm1,shpcnt1=shapevertex(shpcnt,thresh)
+            #frm2,shpcnt2=shapevertex(shpcnt1canny)
+            #cv2.imshow('threshold',frm1)
+            #cv2.imshow('cannyimg',frm2)
+            #print(shpcnt1)
+            #print(shpcnt2)
+            #cv2.imshow('threshold11',frame2)
+            #cv2.imshow('cannyimg11',frame4)
+        cv2.imshow('frame',frame)
+        cv2.imshow('canny',thresh)
+        cv2.imshow('canny1',canny)
+        if cv2.waitKey(1) == 27: #if q is pressed
+            
+            frame1,frame2=detect(frame,thresh)
+            frame3,frame4=detect(frame,canny)
+            cv2.imshow('threshold',frame1)
+            cv2.imshow('cannyimg',frame3)
+        
+            break
+cv2.waitKey(0)
+#When everything done, release the capture
+cap.release()
+cv2.destroyAllWindows()
