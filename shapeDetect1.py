@@ -9,9 +9,12 @@ contours = {}
 approx = []
 #scale of the text
 scale = 0.5
+#confidence level
+confidence=40
+
 #camera
-if(cv2.VideoCapture(2).isOpened()):
-    cap=cv2.VideoCapture(2)
+if(cv2.VideoCapture(1).isOpened()):
+    cap=cv2.VideoCapture(1)
 else:
     cap = cv2.VideoCapture(0)
 print("press q to exit")
@@ -36,7 +39,7 @@ def shapevertex(shpcnt,img):
         if(abs(cv2.contourArea(contours[i]))<100 or not(cv2.isContourConvex(approx))):
                 continue
         x,y,w,h = cv2.boundingRect(contours[i])
-        cv2.drawContours(img,[contours[i]], -1, (255, 255, 0), 2) 
+        cv2.drawContours(img,[contours[i]], -1, (100, 140,200), 2) 
         if(len(approx)<=8):
             print(shapesstr[len(approx)-1])       
             shpcnt[len(approx)-1]=shpcnt[len(approx)-1]+1;
@@ -109,15 +112,17 @@ while(cap.isOpened()):
     if ret==True:
         #grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        kernel = np.ones((3,3), np.uint8)
+        closing= cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
         #Canny
-        canny = cv2.Canny(frame,80,240,3)
+        canny = cv2.Canny(closing,50,200,3)
         #gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         thresh = cv2.threshold(blurred, 200, 255, cv2.THRESH_BINARY)[1]
         #canny = cv2.GaussianBlur(canny, (5, 5), 0)
         #thresh1 = cv2.threshold(blurred1, 150, 255, cv2.THRESH_BINARY)[1]
         #contours
-        if(cntconfi<80 and cntconfi!=0):
+        if(cntconfi<confidence and cntconfi!=0):
             cntconfi=cntconfi+1
             frm1,shpcnt=shapevertex(shpcnt,thresh)
             frm2,shpcnt1=shapevertex(shpcnt1,canny)
@@ -130,9 +135,9 @@ while(cap.isOpened()):
             max_id1=np.argmax(shpcnt1)
             print("shape is by canny:"+shapesstr[max_id1])
         
-        if(cntconfi>=80):
+        if(cntconfi>=confidence):
             cntconfi=0
-            shpcnt=[0,0,0,0,0,0,0,0]
+            shpcnt =[0,0,0,0,0,0,0,0]
             shpcnt1=[0,0,0,0,0,0,0,0]
             
 
@@ -143,27 +148,21 @@ while(cap.isOpened()):
             cv2.imshow('cannyimg',frame3)
             cv2.imshow('threshold11',frame2)
             cv2.imshow('cannyimg11',frame4)
+
         if cv2.waitKey(1) ==98: #if q is pressed
             cntconfi=1
-            #frm1,shpcnt1=shapevertex(shpcnt,thresh)
-            #frm2,shpcnt2=shapevertex(shpcnt1canny)
-            #cv2.imshow('threshold',frm1)
-            #cv2.imshow('cannyimg',frm2)
-            #print(shpcnt1)
-            #print(shpcnt2)
-            #cv2.imshow('threshold11',frame2)
-            #cv2.imshow('cannyimg11',frame4)
-        cv2.imshow('frame',frame)
-        cv2.imshow('canny',thresh)
-        cv2.imshow('canny1',canny)
-        if cv2.waitKey(1) == 27: #if q is pressed
-            
+
+        if cv2.waitKey(1) == 27: #if q is pressed    
             frame1,frame2=detect(frame,thresh)
             frame3,frame4=detect(frame,canny)
             cv2.imshow('threshold',frame1)
             cv2.imshow('cannyimg',frame3)
-        
             break
+
+        cv2.imshow('frame',frame)
+        cv2.imshow('canny',thresh)
+        cv2.imshow('canny1',canny)
+        
 cv2.waitKey(0)
 #When everything done, release the capture
 cap.release()
