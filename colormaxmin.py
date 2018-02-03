@@ -2,16 +2,20 @@ import cv2
 import sys
 import numpy as np
 import matplotlib.pyplot as plt 
-video = cv2.VideoCapture()
-video1=video.open(0)
+
 p1=(0,0)
 p2=(0,0)
 mincol=[0,0,0]
 maxcol=[0,0,0]
+
+if(cv2.VideoCapture(1).isOpened()):
+    video=cv2.VideoCapture(1)
+else:
+    video= cv2.VideoCapture(0)
 if not video.isOpened():
-        video1=video.open(0)
         print ("Could not open video")
         sys.exit()
+        
 while True:
     
         # Read a new frame

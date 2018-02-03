@@ -141,7 +141,7 @@ while(cap.isOpened()):
             shpcnt1=[0,0,0,0,0,0,0,0]
             
 
-        if cv2.waitKey(1) ==97: #if q is pressed
+        if cv2.waitKey(1) ==97: #if a is pressed
             frame1,frame2=detect(frame,thresh)
             frame3,frame4=detect(frame,canny)
             cv2.imshow('threshold',frame1)
@@ -149,10 +149,10 @@ while(cap.isOpened()):
             cv2.imshow('threshold11',frame2)
             cv2.imshow('cannyimg11',frame4)
 
-        if cv2.waitKey(1) ==98: #if q is pressed
+        if cv2.waitKey(1) ==98: #if b is pressed
             cntconfi=1
 
-        if cv2.waitKey(1) == 27: #if q is pressed    
+        if cv2.waitKey(1) == 27: #if esc is pressed    
             frame1,frame2=detect(frame,thresh)
             frame3,frame4=detect(frame,canny)
             cv2.imshow('threshold',frame1)
